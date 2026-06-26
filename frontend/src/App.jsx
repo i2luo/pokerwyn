@@ -7,57 +7,93 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
 const socket = io(BACKEND_URL);
 
 const POSITIONS = [
-  // 0: Hero (bottom middle)
-  { bottom: "3%", left: "50%", transform: "translateX(-50%)" },
-  
-  // 1: Bottom left inner
-  { bottom: "3%", left: "25%" },
-  
-  // 2: Bottom left outer
-  { bottom: "15%", left: "6%" },
-  
-  // 3: Top left outer
-  { top: "20%", left: "3%" },
-  
-  // 4: Top left inner
-  { top: "3%", left: "25%" },
-    
-  // 5: Top right inner
-  { top: "3%", right: "25%" },
-  
-  // 6: Top right outer
-  { top: "20%", right: "3%" },
-  
-  // 7: Bottom right outer
-  { bottom: "15%", right: "6%" },
-  
-  // 8: Bottom right inner
-  { bottom: "3%", right: "25%" }
+  { bottom: "4%", left: "50%", transform: "translateX(-50%)" },
+  { bottom: "4%", left: "26%" },
+  { bottom: "16%", left: "7%" },
+  { top: "20%", left: "4%" },
+  { top: "4%", left: "26%" },
+  { top: "4%", right: "26%" },
+  { top: "20%", right: "4%" },
+  { bottom: "16%", right: "7%" },
+  { bottom: "4%", right: "26%" }
+];
+
+const AVATAR_COLORS = [
+  "from-violet-500 to-purple-700",
+  "from-sky-500 to-blue-700",
+  "from-rose-500 to-pink-700",
+  "from-amber-500 to-orange-700",
+  "from-emerald-500 to-teal-700",
+  "from-fuchsia-500 to-purple-700",
+  "from-cyan-500 to-blue-700",
+  "from-lime-500 to-green-700",
+  "from-indigo-500 to-violet-700",
 ];
 
 const getCardDisplay = (card) => {
-  if (!card) return { rank: "?", suit: "?", color: "text-black" };
+  if (!card) return { rank: "?", suit: "?", color: "text-zinc-900" };
   let rank = "?", suitRaw = "?";
   if (typeof card === 'string') { suitRaw = card.slice(-1); rank = card.slice(0, -1); } 
   else if (typeof card === 'object') { rank = card.rank || card.value || "?"; suitRaw = card.suit || card.type || "?"; }
   const suitMap = { 'h': '♥', 'd': '♦', 'c': '♣', 's': '♠', 'H': '♥', 'D': '♦', 'C': '♣', 'S': '♠' };
   const suitSymbol = suitMap[suitRaw] || suitRaw;
-  const color = ['♥', '♦'].includes(suitSymbol) ? "text-red-600" : "text-black";
+  const color = ['♥', '♦'].includes(suitSymbol) ? "text-red-500" : "text-zinc-900";
   return { rank, suit: suitSymbol, color };
+};
+
+const getInitials = (name) => {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
+const PlayingCard = ({ card, size = "md", className = "" }) => {
+  const { rank, suit, color } = getCardDisplay(card);
+  const sizes = {
+    sm: "w-9 h-[52px] text-[11px] rounded-lg",
+    md: "w-12 h-[68px] text-sm rounded-xl",
+    lg: "w-14 h-20 text-base rounded-2xl",
+    xl: "w-16 h-[88px] text-lg rounded-2xl",
+  };
+
+  return (
+    <div className={`${sizes[size]} bg-white shadow-card flex flex-col items-center justify-center font-semibold relative overflow-hidden ${className}`}>
+      <span className={`${color} leading-none`}>{rank}</span>
+      <span className={`${color} text-[0.85em] leading-none mt-0.5`}>{suit}</span>
+    </div>
+  );
+};
+
+const CardBack = ({ size = "md", className = "" }) => {
+  const sizes = {
+    sm: "w-9 h-[52px] rounded-lg",
+    md: "w-12 h-[68px] rounded-xl",
+    lg: "w-14 h-20 rounded-2xl",
+  };
+  return (
+    <div className={`${sizes[size]} card-back border border-white/10 shadow-card ${className}`} />
+  );
 };
 
 const SpeechBubble = ({ message, isBottom }) => {
   if (!message) return null;
-  const bottomStyle = "top-[140%] after:bottom-full after:border-b-white after:border-t-transparent";
-  const topStyle = "-top-16 after:top-full after:border-t-white after:border-b-transparent";
-  const positionClasses = isBottom ? bottomStyle : topStyle;
+  const bottomStyle = "top-[calc(100%+8px)]";
+  const topStyle = "-top-14";
 
   return (
-    <div className={`absolute left-1/2 -translate-x-1/2 bg-white text-black font-bold px-4 py-2 rounded-xl shadow-xl z-50 whitespace-pre-line text-center leading-tight border-2 border-gray-300 min-w-max after:content-[''] after:absolute after:left-1/2 after:-translate-x-1/2 after:border-8 after:border-transparent ${positionClasses}`}>
+    <div className={`absolute left-1/2 -translate-x-1/2 glass-panel px-3 py-1.5 z-50 whitespace-pre-line text-center text-xs font-medium text-white/90 min-w-max ${isBottom ? bottomStyle : topStyle}`}>
       {message}
     </div>
   );
 };
+
+const StatPill = ({ label, value, accent }) => (
+  <div className="glass-panel px-4 py-2.5 flex flex-col gap-0.5 min-w-[120px]">
+    <span className="text-[10px] text-white/40 font-medium uppercase tracking-widest">{label}</span>
+    <span className={`text-sm font-semibold ${accent}`}>{value}</span>
+  </div>
+);
 
 export default function App() {
   const [gameState, setGameState] = useState(null);
@@ -74,7 +110,6 @@ export default function App() {
   useEffect(() => {
     socket.on("connect", () => console.log("Connected", socket.id));
     
-    // chat message listener
     socket.on("chatUpdate", (msg) => {
         setMessages(prev => [...prev, msg]);
     });
@@ -82,7 +117,6 @@ export default function App() {
     socket.on("state", (newState) => {
       setGameState(newState);
       
-      // chat sync history
       if (newState.chatMessages) {
           setMessages(newState.chatMessages);
       }
@@ -152,13 +186,12 @@ export default function App() {
     socket.on("error", (msg) => alert("Error: " + msg));
 
     socket.on("tableReset", () => {
-        setMySeat(null);      // Force back to spectator/join mode
-        setGameState(null);   // Clear local state momentarily
-        setMessages([]);      // Clear chat locally
-        setBubbles({});       // Clear bubbles
+        setMySeat(null);
+        setGameState(null);
+        setMessages([]);
+        setBubbles({});
     });
     
-    // Clean up listeners
     return () => {
         socket.off();
         socket.off("chatUpdate");
@@ -194,13 +227,19 @@ export default function App() {
     socket.emit("action", { name: gameState.players[mySeat].name, action, amount });
   };
 
-  // chat handler
   const handleSendMessage = (text) => {
     const tableId = gameState?.id || 'default'; 
     socket.emit("sendChat", { tableId, text });
   };
 
-  if (!gameState) return <div className="text-white font-bold text-2xl p-10">Connecting to server...</div>;
+  if (!gameState) {
+    return (
+      <div className="h-screen w-screen bg-[#050505] flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 border-2 border-white/20 border-t-accent-gold rounded-full animate-spin" />
+        <p className="text-white/50 text-sm font-medium tracking-wide">Connecting to table…</p>
+      </div>
+    );
+  }
 
   const isMyTurn = gameState.currentPlayer === mySeat;
   const isHandInProgress = gameState.handInProgress;
@@ -209,6 +248,7 @@ export default function App() {
   const currentTableBet = gameState.currentBet || 0;
   const myStack = myPlayer ? myPlayer.stack : 0;
   const myCurrentBet = myPlayer ? myPlayer.currentBet : 0;
+  const totalPot = gameState.pot.reduce((a,b)=>a+b.total, 0);
 
   const minRaise = gameState.minRaiseAmount || gameState.bigBlind || 10;
   const minValidTotalBet = currentTableBet + minRaise;
@@ -222,93 +262,88 @@ export default function App() {
   const actingPlayer = gameState.currentPlayer !== -1 ? gameState.players[gameState.currentPlayer] : null;
 
   return (
-    <div className="bg-zinc-900 h-screen w-screen relative overflow-hidden text-white font-bold selection:bg-none">
+    <div className="bg-[#050505] h-screen w-screen relative overflow-hidden text-white font-sans selection:bg-none">
       
-      {/* HUD */}
-      <div className="absolute top-0 left-0 bg-black/50 p-4 text-xs z-50 pointer-events-none">
-        <div>Stage: <span className="text-green-400 uppercase">{gameState.stage}</span></div>
-        <div>Pot: <span className="text-yellow-400">${gameState.pot.reduce((a,b)=>a+b.total, 0)}</span></div>
-        <div>Current Bet: ${currentTableBet}</div>
-        <div>Min Raise: ${gameState.minRaiseAmount}</div>
+      {/* Ambient background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[50vh] table-ring rounded-full" />
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-t from-black/80 to-transparent" />
       </div>
 
-      {/* Top Right Controls */}
-      <div className="absolute top-6 right-6 z-50 flex gap-4">
-        
-        {/* Reset Table Button */}
-        <button 
-          onClick={() => {
-            if(window.confirm("Are you sure? This will kick everyone and wipe the table.")) {
-                socket.emit("resetTable");
-            }
-          }}
-          className="bg-red-700 hover:bg-red-600 text-white px-4 py-3 rounded-xl shadow-lg font-bold border-b-4 border-red-900 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2"
-          title="Kick everyone and reset table"
-        >
-          <span>⚠️</span> RESET
-        </button>
+      {/* Top bar */}
+      <header className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-3">
+          <span className="text-lg font-bold tracking-tight text-white/90">PokerWYN</span>
+          {isHandInProgress && (
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 bg-white/[0.06] px-2.5 py-1 rounded-full">
+              {gameState.stage}
+            </span>
+          )}
+        </div>
 
-        {/* Add Bot Button*/}
-        {!isHandInProgress && (
+        <div className="flex items-center gap-2">
+          {!isHandInProgress && (
+            <button 
+              onClick={handleAddBot}
+              className="text-xs font-semibold text-white/60 hover:text-white bg-white/[0.06] hover:bg-white/[0.1] px-4 py-2 rounded-full transition-colors"
+            >
+              + Add Bot
+            </button>
+          )}
           <button 
-            onClick={handleAddBot}
-            className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl shadow-lg font-bold border-b-4 border-purple-800 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2"
+            onClick={() => {
+              if(window.confirm("Are you sure? This will kick everyone and wipe the table.")) {
+                  socket.emit("resetTable");
+              }
+            }}
+            className="text-xs font-semibold text-red-400/80 hover:text-red-400 bg-red-500/10 hover:bg-red-500/15 px-4 py-2 rounded-full transition-colors"
           >
-            <span>🤖</span> ADD BOT
+            Reset
           </button>
-        )}
-      </div>
+        </div>
+      </header>
 
-      {/* Left Side: Timer and Hand Stats */}
+      {/* Left stats panel */}
       {isHandInProgress && (
-        <div className="fixed bottom-40 left-10 z-[100] flex flex-col-reverse gap-2 items-start pointer-events-none">
+        <div className="fixed bottom-44 left-6 z-[100] flex flex-col-reverse gap-2 items-start pointer-events-none">
             {actingPlayer && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-                    <div className="bg-black/80 backdrop-blur-md text-white border-2 border-yellow-500/50 rounded-xl px-6 py-3 shadow-2xl flex flex-col items-start min-w-[140px]">
-                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Action On</span>
-                        <span className="text-lg font-bold text-yellow-400 truncate max-w-[150px]">{actingPlayer.name}</span>
-                        <div className="w-full h-1 bg-gray-700 rounded-full mt-2 overflow-hidden">
-                            <div className="h-full bg-yellow-500 transition-all duration-1000 ease-linear" style={{ width: `${(timeLeft / 30) * 100}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-400 mt-1 self-end">{timeLeft}s</span>
-                    </div>
-                </div>
+                <StatPill 
+                  label="Action on" 
+                  value={
+                    <span className="flex items-center gap-2">
+                      {actingPlayer.name}
+                      <span className="text-white/30 font-normal">{timeLeft}s</span>
+                    </span>
+                  }
+                  accent="text-accent-gold"
+                />
             )}
 
             {myPlayer && myPlayer.handDescription && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-                    <div className="bg-black/80 backdrop-blur-md text-white border-2 border-green-500/50 rounded-xl px-6 py-3 shadow-2xl flex flex-col items-start min-w-[140px]">
-                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Current Hand</span>
-                        <span className="text-xl font-bold text-green-400 whitespace-nowrap">{myPlayer.handDescription}</span>
-                    </div>
-                </div>
+                <StatPill label="Your hand" value={myPlayer.handDescription} accent="text-accent-emerald" />
             )}
 
             {myPlayer && (typeof myPlayer.equity === 'number') && (
-                <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-                    <div className="bg-black/80 backdrop-blur-md text-white border-2 border-blue-500/50 rounded-xl px-6 py-3 shadow-2xl flex flex-col items-start gap-1 min-w-[140px]">
-                        <div className="flex items-center justify-between w-full gap-4">
-                            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Win Equity</span>
-                            <span className={`text-lg font-mono font-bold ${myPlayer.equity >= myPlayer.potOdds ? 'text-green-400' : 'text-red-400'}`}>
-                                {myPlayer.equity}%
-                            </span>
-                        </div>
-                        {myPlayer.potOdds > 0 && (
-                            <div className="flex items-center justify-between w-full gap-4">
-                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Pot Odds</span>
-                                <span className="text-lg font-mono font-bold text-yellow-400">
-                                    {myPlayer.potOdds}%
-                                </span>
-                            </div>
-                        )}
+                <div className="glass-panel px-4 py-2.5 flex flex-col gap-1.5 min-w-[120px]">
+                    <div className="flex items-center justify-between gap-4">
+                        <span className="text-[10px] text-white/40 font-medium uppercase tracking-widest">Equity</span>
+                        <span className={`text-sm font-semibold ${myPlayer.equity >= myPlayer.potOdds ? 'text-accent-emerald' : 'text-red-400'}`}>
+                            {myPlayer.equity}%
+                        </span>
                     </div>
+                    {myPlayer.potOdds > 0 && (
+                        <div className="flex items-center justify-between gap-4">
+                            <span className="text-[10px] text-white/40 font-medium uppercase tracking-widest">Pot odds</span>
+                            <span className="text-sm font-semibold text-accent-gold">{myPlayer.potOdds}%</span>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
       )}
 
-      {/* Right Side: Chat Window */}
-      <div className="fixed bottom-36 right-6 z-[100] flex flex-col items-end pointer-events-none">
+      {/* Chat */}
+      <div className="fixed bottom-40 right-6 z-[100] flex flex-col items-end pointer-events-none">
           <ChatWindow 
             messages={messages} 
             onSendMessage={handleSendMessage}
@@ -316,27 +351,41 @@ export default function App() {
           />
       </div>
 
-      {/* Table */}
-      <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] max-w-[1100px] aspect-[2.3/1] bg-green-800 rounded-[300px] border-[12px] border-green-950 shadow-2xl relative">
-        <div className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-4">
-          {!isHandInProgress && <div className="text-green-900/50 text-4xl font-black tracking-widest pointer-events-none">POKERWYN</div>}
-          <div className="flex gap-2 h-20">
-            {gameState.communityCards.map((card, i) => {
-                const { rank, suit, color } = getCardDisplay(card);
-                return (
-                  <div key={i} className={`w-14 h-20 bg-white ${color} rounded shadow-lg flex items-center justify-center border border-gray-300 text-xl font-bold`}>
-                    {rank}{suit}
-                  </div>
-                );
-            })}
+      {/* Table area */}
+      <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[1000px] aspect-[2.2/1] relative">
+        
+        {/* Subtle table outline */}
+        <div className="absolute inset-0 rounded-[50%] border border-white/[0.06] bg-white/[0.02]" />
+
+        {/* Community cards + pot */}
+        <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-5">
+          {!isHandInProgress && (
+            <p className="text-white/[0.08] text-3xl font-bold tracking-[0.3em] uppercase pointer-events-none select-none">
+              PokerWYN
+            </p>
+          )}
+          
+          <div className="flex gap-2 items-center min-h-[80px]">
+            {gameState.communityCards.length > 0 ? (
+              gameState.communityCards.map((card, i) => (
+                <PlayingCard key={i} card={card} size="lg" />
+              ))
+            ) : isHandInProgress ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="w-14 h-20 rounded-2xl border border-dashed border-white/[0.08]" />
+              ))
+            ) : null}
           </div>
-          {gameState.pot[0]?.total > 0 && (
-            <div className="bg-black/60 px-4 py-1 rounded-full text-yellow-400 border border-yellow-400/30">
-              Total Pot: ${gameState.pot.reduce((a,b)=>a+b.total, 0)}
+
+          {(totalPot > 0 || isHandInProgress) && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-white/30 uppercase tracking-widest font-medium">Pot</span>
+              <span className="text-accent-gold font-semibold text-lg tabular-nums">${totalPot}</span>
             </div>
           )}
         </div>
 
+        {/* Players */}
         {gameState.players.map((player, serverIndex) => {
           if (player.state === "LEFT") return null;
           const offset = mySeat !== null ? mySeat : 0;
@@ -345,152 +394,184 @@ export default function App() {
           const isBottom = [0, 1, 2, 7, 8].includes(displayIndex);
           const isHero = displayIndex === 0;
           const showCards = (player.hand && player.hand.length > 0 && (mySeat === serverIndex || player.showCards));
+          const avatarColor = AVATAR_COLORS[serverIndex % AVATAR_COLORS.length];
 
           return (
-            <div key={serverIndex} className="absolute flex flex-col items-center w-24 transition-all duration-300" style={POSITIONS[displayIndex]}>
+            <div key={serverIndex} className="absolute flex flex-col items-center w-28 transition-all duration-300" style={POSITIONS[displayIndex]}>
               <SpeechBubble message={bubbles[serverIndex]} isBottom={isBottom} />
               
-              {/* Kick Bot Button */}
               {player.isBot && (
                 <button
                     onClick={(e) => {
                     e.stopPropagation();
                     socket.emit('toggleBotKick', player.seatIndex);
                     }}
-                    className={`absolute -top-3 -right-3 w-8 h-8 flex items-center justify-center rounded-full shadow-md border-2 transition-all z-20 ${
+                    className={`absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center rounded-full transition-all z-20 ${
                     player.kickPending 
-                        ? "bg-gray-700 border-gray-500 hover:bg-gray-600" 
-                        : "bg-red-600 border-red-800 hover:bg-red-500"
+                        ? "bg-white/10 text-white/50 hover:bg-white/15" 
+                        : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
                     }`}
                     title={player.kickPending ? "Cancel Kick" : "Kick Bot after hand"}
                 >
                     {player.kickPending ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     )}
                 </button>
               )}
 
-              {/* Leaving Soon Badge */}
               {player.kickPending && (
-                <div className="absolute top-0 w-full text-center z-30 pointer-events-none">
-                    <span className="bg-black/80 text-red-400 text-[10px] px-2 py-0.5 rounded-b font-bold uppercase tracking-wider shadow-sm border border-red-500/30">
-                    LEAVING
+                <div className="absolute -top-1 w-full text-center z-30 pointer-events-none">
+                    <span className="text-[9px] text-red-400/80 font-semibold uppercase tracking-wider">
+                      Leaving
                     </span>
                 </div>
               )}
+
+              {/* Bet chip */}
+              {player.currentBet > 0 && (
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-30">
+                  <span className="bg-accent-gold/20 text-accent-gold text-[10px] font-semibold px-2 py-0.5 rounded-full tabular-nums">
+                    ${player.currentBet}
+                  </span>
+                </div>
+              )}
               
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center border-4 bg-gray-800 relative z-10 ${isActing ? 'border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.6)] scale-110' : 'border-gray-600'} ${player.state === 'FOLDED' ? 'opacity-50 grayscale' : ''}`}>
-                <span className="text-xs truncate max-w-[90%]">{player.name}</span>
-                {gameState.buttonIndex === serverIndex && <div className="absolute -right-2 -bottom-1 w-6 h-6 bg-white text-black text-[10px] rounded-full flex items-center justify-center border-2 border-gray-300 shadow-sm font-bold">D</div>}
+              {/* Avatar */}
+              <div className={`relative z-10 transition-all duration-300 ${isActing ? 'scale-110' : ''} ${player.state === 'FOLDED' ? 'opacity-40 grayscale' : ''}`}>
+                <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${avatarColor} flex items-center justify-center text-sm font-bold text-white shadow-lg ${isActing ? 'ring-2 ring-accent-gold ring-offset-2 ring-offset-[#050505] shadow-glow' : ''}`}>
+                  {getInitials(player.name)}
+                </div>
+                {gameState.buttonIndex === serverIndex && (
+                  <div className="absolute -right-1 -bottom-0.5 w-5 h-5 bg-white text-black text-[9px] rounded-full flex items-center justify-center font-bold shadow-md">
+                    D
+                  </div>
+                )}
               </div>
-              <div className="bg-black/80 px-3 py-0.5 rounded-full -mt-2 border border-gray-700 text-sm z-20 font-mono text-green-400">${player.stack}</div>
-              <div className={`flex gap-1 z-0 transition-transform hover:-translate-y-2 ${isHero ? "-mt-2" : "-mt-2"}`}>
+
+              {/* Name + stack */}
+              <div className="mt-1.5 text-center z-20">
+                <p className="text-[11px] text-white/50 font-medium truncate max-w-[90px]">{player.name}</p>
+                <p className="text-sm font-semibold text-white/90 tabular-nums">${player.stack}</p>
+              </div>
+
+              {/* Hole cards */}
+              <div className={`flex z-0 mt-1 ${isHero ? '' : ''}`}>
                 {showCards ? 
-                  player.hand.map((c, i) => <div key={i} className={`w-10 h-14 bg-white ${getCardDisplay(c).color} text-sm border rounded shadow-md flex items-center justify-center`}>{getCardDisplay(c).rank}{getCardDisplay(c).suit}</div>) : 
-                  player.hand && player.hand.length > 0 && <><div className="w-10 h-14 bg-blue-800 border-2 border-white/20 rounded shadow-md"></div><div className="w-10 h-14 bg-blue-800 border-2 border-white/20 rounded shadow-md -ml-6"></div></>
+                  player.hand.map((c, i) => (
+                    <PlayingCard 
+                      key={i} 
+                      card={c} 
+                      size={isHero ? "md" : "sm"} 
+                      className={i > 0 ? "-ml-4" : ""} 
+                    />
+                  )) : 
+                  player.hand && player.hand.length > 0 && (
+                    <>
+                      <CardBack size={isHero ? "md" : "sm"} />
+                      <CardBack size={isHero ? "md" : "sm"} className="-ml-4" />
+                    </>
+                  )
                 }
               </div>
-              {player.state === 'FOLDED' && <div className="text-red-500 font-bold text-xs mt-1">FOLD</div>}
-              {player.isAllIn && <div className="text-red-600 font-black text-xs mt-1 animate-pulse">ALL IN</div>}
+
+              {player.state === 'FOLDED' && (
+                <span className="text-[10px] text-white/30 font-semibold uppercase tracking-wider mt-1">Fold</span>
+              )}
+              {player.isAllIn && (
+                <span className="text-[10px] text-red-400 font-semibold uppercase tracking-wider mt-1">All in</span>
+              )}
             </div>
           );
         })}
       </div>
 
-      {/* Bottom Middle Controls */}
-      <div className="absolute bottom-0 w-full p-6 flex justify-center items-end h-32 bg-gradient-to-t from-black/90 to-transparent pointer-events-none">
-        <div className="pointer-events-auto flex gap-4">
+      {/* Bottom controls */}
+      <div className="absolute bottom-0 w-full px-6 pb-8 pt-16 flex justify-center items-end pointer-events-none bg-gradient-to-t from-[#050505] via-[#050505]/90 to-transparent">
+        <div className="pointer-events-auto flex flex-col items-center gap-3">
           {mySeat === null ? (
-            <div className="flex gap-2 bg-black/50 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+            <div className="flex gap-3 glass-panel p-2 pl-4">
               <input 
-                className="text-black px-4 py-2 rounded font-bold outline-none focus:ring-2 focus:ring-green-500" 
+                className="bg-transparent text-white placeholder-white/30 font-medium outline-none w-40 text-sm" 
                 value={inputName} 
                 onChange={e => setInputName(e.target.value)} 
-                placeholder="Enter Name" 
+                placeholder="Your name" 
               />
-              <button onClick={handleJoin} className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded font-bold transition-colors">JOIN TABLE</button>
+              <button onClick={handleJoin} className="btn-pill-primary">Join Table</button>
             </div>
           ) : (
             <>
-
-              {/* Rebuy Button */}
               {!isHandInProgress && myPlayer && myPlayer.stack === 0 && (
-                <div className="flex flex-col items-center gap-2 bg-black/80 p-3 rounded-xl border border-yellow-500/50 mb-2 animate-in fade-in slide-in-from-bottom-4 shadow-xl backdrop-blur-md">
-                    <div className="text-yellow-400 font-black text-xs uppercase tracking-widest">BUSTED! REBUY?</div>
-                    
-                    <div className="flex items-center gap-2 w-full">
-                        <span className="text-[10px] text-gray-400 font-mono">1</span>
+                <div className="flex flex-col items-center gap-3 glass-panel p-4 w-64">
+                    <p className="text-accent-gold text-xs font-semibold uppercase tracking-widest">Busted — rebuy?</p>
+                    <div className="flex items-center gap-3 w-full">
+                        <span className="text-[10px] text-white/30 tabular-nums">$1</span>
                         <input 
                             type="range" 
                             min="1" 
                             max="1000" 
                             value={rebuyAmount} 
                             onChange={(e) => setRebuyAmount(Number(e.target.value))} 
-                            className="w-32 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                            className="flex-1"
                         />
-                        <span className="text-[10px] text-gray-400 font-mono">1k</span>
+                        <span className="text-[10px] text-white/30 tabular-nums">$1k</span>
                     </div>
-
                     <button 
                         onClick={() => socket.emit("rebuy", { amount: rebuyAmount })} 
-                        className="bg-yellow-600 hover:bg-yellow-500 text-white w-full py-1.5 rounded-lg font-bold text-sm shadow-lg border-b-2 border-yellow-800 active:border-b-0 active:translate-y-[2px] transition-all flex items-center justify-center gap-1"
+                        className="btn-pill-primary w-full text-center"
                     >
-                        <span>💰</span> ADD ${rebuyAmount}
+                        Add ${rebuyAmount}
                     </button>
                 </div>
               )}
 
-              {/* Show Cards Button */}
               {!isHandInProgress && myPlayer && myPlayer.hand && myPlayer.hand.length > 0 && !myPlayer.showCards && (
                 <button 
                   onClick={() => socket.emit("showHand")} 
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg shadow-lg font-bold text-sm mb-2 border border-gray-500 animate-in fade-in slide-in-from-bottom-2"
+                  className="btn-pill text-white/70"
                 >
-                  👀 SHOW CARDS
+                  Show Cards
                 </button>
               )}
 
               {!isHandInProgress && gameState.players.filter(p => p.state !== 'LEFT').length >= 2 && (
-                <button onClick={handleStartHand} className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl shadow-lg font-bold text-xl animate-pulse pointer-events-auto">
-                  DEAL HAND
+                <button onClick={handleStartHand} className="btn-pill-primary text-base px-10 py-4">
+                  Deal Hand
                 </button>
               )}
 
               {isHandInProgress && isMyTurn && (
-                <div className="flex flex-col gap-2 animate-in slide-in-from-bottom-10 fade-in duration-300">
+                <div className="flex flex-col items-center gap-3">
                   {canRaise && (
-                    <div className="flex items-center gap-2 bg-black/60 p-2 rounded-lg mb-1">
-                      <span className="text-xs text-gray-400">MIN: {sliderMin}</span>
+                    <div className="flex items-center gap-4 glass-panel px-4 py-2">
+                      <span className="text-[10px] text-white/30 tabular-nums">${sliderMin}</span>
                       <input 
                         type="range" 
                         min={sliderMin} 
                         max={sliderMax} 
                         value={betAmount} 
                         onChange={(e) => setBetAmount(Number(e.target.value))} 
-                        className="w-48 accent-green-500" 
+                        className="w-40" 
                       />
-                      <span className="text-xs text-gray-400">MAX: {sliderMax}</span>
+                      <span className="text-[10px] text-white/30 tabular-nums">${sliderMax}</span>
+                      <span className="text-sm font-semibold text-accent-gold tabular-nums ml-1">${betAmount}</span>
                     </div>
                   )}
                   <div className="flex gap-3">
-                    <button 
-                      onClick={() => handleAction("FOLD")} 
-                      className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-xl shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1 font-bold"
-                    >
-                      FOLD
+                    <button onClick={() => handleAction("FOLD")} className="btn-pill-danger">
+                      Fold
                     </button>
                     
                     <button 
                       onClick={() => handleAction(amountToCall > 0 ? "CALL" : "CHECK")} 
-                      className="bg-yellow-600 hover:bg-yellow-500 text-white px-8 py-4 rounded-xl shadow-lg border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1 font-bold"
+                      className="btn-pill"
                     >
-                      {amountToCall > 0 ? (isCallAllIn ? "CALL ALL-IN" : `CALL`) : "CHECK"}
+                      {amountToCall > 0 ? (isCallAllIn ? "Call All-In" : `Call ${amountToCall}`) : "Check"}
                     </button>
 
                     {canRaise && (
@@ -502,9 +583,9 @@ export default function App() {
                               handleAction("BET", betAmount);
                           }
                         }} 
-                        className="bg-green-600 hover:bg-green-500 text-white px-8 py-4 rounded-xl shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1 font-bold"
+                        className="btn-pill-primary"
                       >
-                        {betAmount >= maxValidTotalBet ? "ALL IN" : `RAISE TO $${betAmount}`}
+                        {betAmount >= maxValidTotalBet ? "All In" : `Raise ${betAmount}`}
                       </button>
                     )}
                   </div>
