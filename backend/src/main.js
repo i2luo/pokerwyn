@@ -102,9 +102,9 @@ io.on("connection", (socket) => {
 
   socket.on("add-bot", () => {
     const seatIndex = table.players.length;
-    const botName = "Bot-" + Math.floor(Math.random() * 100);
+    const botName = "Bot-" + Math.floor(Math.random() * 1000);
     
-    // Create a new player
+    // Create a new player (table.addPlayer guarantees the final name is unique)
     const newBot = new Player(seatIndex, botName);
     newBot.stack = 1000;
     newBot.isBot = true;

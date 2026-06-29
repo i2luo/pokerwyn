@@ -207,9 +207,29 @@ class Table {
         return true;
     }
 
+    getUniqueName(desiredName) {
+        const taken = new Set(this.players.map(p => p.name));
+        if (!taken.has(desiredName)) return desiredName;
+
+        let suffix = 2;
+        let candidate = `${desiredName} (${suffix})`;
+        while (taken.has(candidate)) {
+            suffix++;
+            candidate = `${desiredName} (${suffix})`;
+        }
+        return candidate;
+    }
+
     addPlayer(player) {
         if (this.players.length >= this.maxPlayers) return false;
-        
+
+        // Player names are used as unique identifiers throughout the engine
+        // (resolving actions, pot contributions, showdown). Duplicate names
+        // (e.g. randomly generated bots colliding) cause actions to resolve
+        // against the wrong player, which can stall the table. Enforce
+        // uniqueness here so every seat is addressable.
+        player.name = this.getUniqueName(player.name);
+
         // If a hand is in progress, new player must wait
         if (this.handInProgress) {
             console.log(`👤 ${player.name} joined as spectator (Waiting for next hand)`);
