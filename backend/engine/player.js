@@ -37,6 +37,11 @@ class Player {
     this.socketId = null;
     this.actedThisRound = false;
     this.isBot = isBot;
+    // Set true while the player's socket is gone but they still hold a seat,
+    // waiting out the reconnect grace window before being kicked.
+    this.disconnected = false;
+    // Handle for the pending kick timer so a reconnect can cancel it.
+    this.reconnectTimer = null;
   }
 
   getSeat() {

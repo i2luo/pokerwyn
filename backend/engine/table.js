@@ -798,6 +798,7 @@ class Table {
                     chatMessages: this.chatMessages,
                     isBot: p.isBot,
                     kickPending: p.kickPending,
+                    disconnected: p.disconnected,
                 };
             }),
             communityCards: [...this.communityCards],
